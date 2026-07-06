@@ -3,7 +3,7 @@ import { getAuth } from 'firebase/auth';
 import { getFirestore } from 'firebase/firestore';
 
 const firebaseConfig = {
-  apiKey: "AIzaSyAgbGeLZ_BHJy4b5Z_2NyRegsqMMDQPkGc",
+  apiKey: "GEMINI_API_KEY",
   authDomain: "clean-branch-fxfb9.firebaseapp.com",
   projectId: "clean-branch-fxfb9",
   storageBucket: "clean-branch-fxfb9.firebasestorage.app",
