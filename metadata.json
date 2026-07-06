@@ -1,0 +1,6 @@
+{
+  "name": "Foodpanda Clone",
+  "description": "A high-fidelity Foodpanda clone featuring user authentication, menu categories, dynamic cart, secure checkout, discount vouchers, simulated push notifications, and a real-time order tracking map.",
+  "requestFramePermissions": ["geolocation"],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
