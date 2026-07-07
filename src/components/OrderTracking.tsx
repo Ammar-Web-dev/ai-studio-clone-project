@@ -5,6 +5,8 @@ import {
   HelpCircle, Sparkles, Navigation, Play, Zap, RefreshCw, BellRing
 } from 'lucide-react';
 import { OrderStatus } from '../types';
+import { db, handleFirestoreError, OperationType } from '../lib/firebase';
+import { doc, onSnapshot } from 'firebase/firestore';
 
 interface OrderTrackingProps {
   orderId: string;
@@ -52,55 +54,119 @@ export default function OrderTracking({
   useEffect(() => {
     onTriggerNotification(
       "Order Placed Successfully! 🎉",
-      `foodpanda: Your order ${orderId} has been received by ${restaurantName}.`,
+      `foodpanda: Your order has been received by ${restaurantName}.`,
       'success'
     );
 
-    const timer1 = setTimeout(() => {
-      setStatus('preparing');
-      setProgress(35);
-      setEta(18);
-      onTriggerNotification(
-        "Chef is Cooking! 👨‍🍳",
-        `foodpanda: ${restaurantName} is now preparing your delicious hot meal.`,
-        'order'
-      );
-    }, 6000);
+    // 1. Subscribe to Firestore order document for real-time status updates from the kitchen
+    let unsubscribe: any = () => {};
+    if (orderId) {
+      const orderRef = doc(db, 'orders', orderId);
+      unsubscribe = onSnapshot(orderRef, (docSnapshot) => {
+        if (docSnapshot.exists()) {
+          const data = docSnapshot.data();
+          if (data && data.status && data.status !== status) {
+            setStatus(data.status);
+            
+            // Sync status variables
+            if (data.status === 'received') {
+              setProgress(10);
+              setEta(25);
+            } else if (data.status === 'preparing') {
+              setProgress(35);
+              setEta(18);
+              onTriggerNotification(
+                "Chef is Cooking! 👨‍🍳",
+                `foodpanda: ${restaurantName} is preparing your delicious meal.`,
+                'order'
+              );
+            } else if (data.status === 'picked_up') {
+              setProgress(60);
+              setEta(10);
+              onTriggerNotification(
+                "Rider Picked Up Your Food! 🛵",
+                "foodpanda: Rider Muhammad has picked up your order and is heading your way.",
+                'order'
+              );
+            } else if (data.status === 'nearby') {
+              setProgress(85);
+              setEta(3);
+              onTriggerNotification(
+                "Rider is Nearby! 📍",
+                "foodpanda: Your rider Muhammad is turning the street corner.",
+                'info'
+              );
+            } else if (data.status === 'delivered') {
+              setProgress(100);
+              setEta(0);
+              onTriggerNotification(
+                "Order Delivered! 🍔 Enjoy!",
+                "foodpanda: Muhammad has arrived. Enjoy your delicious hot meal!",
+                'success'
+              );
+            }
+          }
+        }
+      }, (err) => {
+        console.warn("Firestore status listener failed, relying on simulation timer:", err);
+        handleFirestoreError(err, OperationType.GET, 'orders/' + orderId);
+      });
+    }
 
-    const timer2 = setTimeout(() => {
-      setStatus('picked_up');
-      setProgress(60);
-      setEta(10);
-      onTriggerNotification(
-        "Rider Picked Up Your Food! 🛵",
-        "foodpanda: Rider Muhammad has picked up your order and is heading your way.",
-        'order'
-      );
-    }, 14000);
+    // 2. Automated status progress transitions if enabled by Admin Settings (or fallback)
+    const speedModifier = parseInt(localStorage.getItem('admin_rider_speed_modifier') || '1') || 1;
+    const isAutoAdvanceEnabled = localStorage.getItem('admin_auto_advance') !== 'false'; // default true
 
-    const timer3 = setTimeout(() => {
-      setStatus('nearby');
-      setProgress(85);
-      setEta(3);
-      onTriggerNotification(
-        "Rider is Nearby! 📍",
-        "foodpanda: Get ready! Your rider Muhammad is just 1 street away.",
-        'info'
-      );
-    }, 22000);
+    let timer1: any, timer2: any, timer3: any, timer4: any;
 
-    const timer4 = setTimeout(() => {
-      setStatus('delivered');
-      setProgress(100);
-      setEta(0);
-      onTriggerNotification(
-        "Order Delivered! 🍔 Enjoy!",
-        "foodpanda: Muhammad has arrived. Enjoy your delicious hot meal!",
-        'success'
-      );
-    }, 30000);
+    if (isAutoAdvanceEnabled) {
+      timer1 = setTimeout(() => {
+        setStatus('preparing');
+        setProgress(35);
+        setEta(18);
+        onTriggerNotification(
+          "Chef is Cooking! 👨‍🍳",
+          `foodpanda: ${restaurantName} is now preparing your delicious hot meal.`,
+          'order'
+        );
+      }, 6000 / speedModifier);
+
+      timer2 = setTimeout(() => {
+        setStatus('picked_up');
+        setProgress(60);
+        setEta(10);
+        onTriggerNotification(
+          "Rider Picked Up Your Food! 🛵",
+          "foodpanda: Rider Muhammad has picked up your order and is heading your way.",
+          'order'
+        );
+      }, 14000 / speedModifier);
+
+      timer3 = setTimeout(() => {
+        setStatus('nearby');
+        setProgress(85);
+        setEta(3);
+        onTriggerNotification(
+          "Rider is Nearby! 📍",
+          "foodpanda: Get ready! Your rider Muhammad is just 1 street away.",
+          'info'
+        );
+      }, 22000 / speedModifier);
+
+      timer4 = setTimeout(() => {
+        setStatus('delivered');
+        setProgress(100);
+        setEta(0);
+        onTriggerNotification(
+          "Order Delivered! 🍔 Enjoy!",
+          "foodpanda: Muhammad has arrived. Enjoy your delicious hot meal!",
+          'success'
+        );
+      }, 30000 / speedModifier);
+    }
 
     return () => {
+      unsubscribe();
       clearTimeout(timer1);
       clearTimeout(timer2);
       clearTimeout(timer3);

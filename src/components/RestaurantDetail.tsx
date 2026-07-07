@@ -1,22 +1,96 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import { motion } from 'motion/react';
-import { ArrowLeft, Star, Clock, Bike, ShoppingBag, Search, CheckCircle2, ChevronRight, Info, Heart, Minus, Plus } from 'lucide-react';
+import { ArrowLeft, Star, Clock, Bike, ShoppingBag, Search, CheckCircle2, ChevronRight, Info, Heart, Minus, Plus, MessageSquare, Send, ThumbsUp, Calendar } from 'lucide-react';
 import { Restaurant, FoodItem, CartItem } from '../types';
+import { db, handleFirestoreError, OperationType } from '../lib/firebase';
+import { collection, query, where, onSnapshot, addDoc } from 'firebase/firestore';
 
 interface RestaurantDetailProps {
   restaurant: Restaurant;
   onBack: () => void;
   onAddToCart: (item: FoodItem, quantity: number, customization?: string) => void;
   cartItems: CartItem[];
+  user: any;
 }
 
-export default function RestaurantDetail({ restaurant, onBack, onAddToCart, cartItems }: RestaurantDetailProps) {
+export default function RestaurantDetail({ restaurant, onBack, onAddToCart, cartItems, user }: RestaurantDetailProps) {
   const [selectedCategory, setSelectedCategory] = useState('All');
   const [searchQuery, setSearchQuery] = useState('');
   const [customizingItem, setCustomizingItem] = useState<FoodItem | null>(null);
   const [quantity, setQuantity] = useState(1);
   const [customizationText, setCustomizationText] = useState('');
   const [favorite, setFavorite] = useState(false);
+
+  // Reviews states
+  const [reviews, setReviews] = useState<any[]>([]);
+  const [reviewsLoading, setReviewsLoading] = useState(true);
+  const [newRating, setNewRating] = useState(5);
+  const [newComment, setNewComment] = useState('');
+  const [isSubmittingReview, setIsSubmittingReview] = useState(false);
+
+  // Stream reviews in real-time
+  useEffect(() => {
+    const reviewsRef = collection(db, 'reviews');
+    const q = query(
+      reviewsRef,
+      where('restaurantId', '==', restaurant.id)
+    );
+
+    const unsubscribe = onSnapshot(q, (snapshot) => {
+      const fetched: any[] = [];
+      snapshot.forEach((doc) => {
+        fetched.push({ id: doc.id, ...doc.data() });
+      });
+      // Sort client-side by createdAt descending to avoid composite index requirements
+      fetched.sort((a, b) => {
+        const timeA = a.createdAt ? new Date(a.createdAt).getTime() : 0;
+        const timeB = b.createdAt ? new Date(b.createdAt).getTime() : 0;
+        return timeB - timeA;
+      });
+      setReviews(fetched);
+      setReviewsLoading(false);
+    }, (err) => {
+      console.error("Error streaming reviews:", err);
+      setReviewsLoading(false);
+      handleFirestoreError(err, OperationType.LIST, 'reviews');
+    });
+
+    return () => unsubscribe();
+  }, [restaurant.id]);
+
+  const handleSubmitReview = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!newComment.trim()) {
+      alert("Please provide some review feedback.");
+      return;
+    }
+
+    setIsSubmittingReview(true);
+    try {
+      const reviewerEmail = user?.email || "guest@foodpanda.com";
+      const reviewerName = reviewerEmail.split('@')[0];
+      
+      const newReview = {
+        restaurantId: restaurant.id,
+        restaurantName: restaurant.name,
+        rating: newRating,
+        comment: newComment.trim(),
+        reviewerName: reviewerName.charAt(0).toUpperCase() + reviewerName.slice(1),
+        reviewerEmail: reviewerEmail,
+        createdAt: new Date().toISOString()
+      };
+
+      await addDoc(collection(db, 'reviews'), newReview);
+      setNewComment('');
+      setNewRating(5);
+    } catch (err) {
+      console.error("Error submitting review:", err);
+      setIsSubmittingReview(false);
+      handleFirestoreError(err, OperationType.CREATE, 'reviews');
+    } finally {
+      setIsSubmittingReview(false);
+    }
+  };
 
   // Extract all categories in this restaurant's menu
   const categories = useMemo(() => {
@@ -258,6 +332,119 @@ export default function RestaurantDetail({ restaurant, onBack, onAddToCart, cart
                 </p>
               </div>
             )}
+          </div>
+        </div>
+      </div>
+
+      {/* 2.5. Customer Reviews Section */}
+      <div className="max-w-6xl mx-auto px-4 sm:px-6 pb-16">
+        <div className="border-t border-gray-200 pt-10">
+          <div className="flex items-center gap-2 mb-6">
+            <MessageSquare className="w-5 h-5 text-[#D70F64]" />
+            <h2 className="text-xl font-extrabold text-gray-900 tracking-tight">Customer Reviews</h2>
+            <span className="bg-pink-50 text-[#D70F64] text-xs font-bold px-2.5 py-0.5 rounded-full">
+              {reviews.length} feedback
+            </span>
+          </div>
+
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+            {/* Left: Review feedback stream (2 cols) */}
+            <div className="lg:col-span-2 space-y-4">
+              {reviewsLoading ? (
+                <div className="bg-white p-8 rounded-2xl border border-gray-100 text-center text-xs text-gray-400">
+                  <div className="animate-spin inline-block w-5 h-5 border-2 border-[#D70F64] border-t-transparent rounded-full mb-2"></div>
+                  <p>Loading real-time customer reviews...</p>
+                </div>
+              ) : reviews.length === 0 ? (
+                <div className="bg-white p-12 rounded-2xl border border-gray-100 text-center">
+                  <Star className="w-10 h-10 text-gray-200 mx-auto mb-3" />
+                  <p className="font-bold text-gray-700 text-sm">No reviews yet</p>
+                  <p className="text-xs text-gray-400 max-w-xs mx-auto mt-1">Be the first to share your dining experience and help others choose!</p>
+                </div>
+              ) : (
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  {reviews.map((rev) => (
+                    <div key={rev.id} className="bg-white border border-gray-100 p-5 rounded-2xl shadow-xs relative">
+                      <div className="flex justify-between items-start gap-2 mb-2">
+                        <div>
+                          <p className="font-bold text-gray-800 text-xs truncate max-w-[120px]">{rev.reviewerName}</p>
+                          <p className="text-[10px] text-gray-400 font-mono mt-0.5">{rev.reviewerEmail}</p>
+                        </div>
+                        <div className="flex items-center bg-amber-50 px-2 py-0.5 rounded text-amber-700 font-bold text-[10px] gap-0.5 shrink-0">
+                          <Star className="w-3 h-3 fill-amber-500 text-amber-500" />
+                          {rev.rating.toFixed(1)}
+                        </div>
+                      </div>
+                      <p className="text-xs text-gray-600 leading-normal italic mt-2.5">
+                        "{rev.comment}"
+                      </p>
+                      <div className="flex justify-between items-center mt-4 pt-3 border-t border-gray-50 text-[10px] text-gray-400">
+                        <span className="flex items-center gap-1">
+                          <Calendar className="w-3 h-3 text-gray-300" />
+                          {new Date(rev.createdAt).toLocaleDateString()}
+                        </span>
+                        <span className="flex items-center gap-1 hover:text-[#D70F64] cursor-pointer">
+                          <ThumbsUp className="w-3 h-3" />
+                          Helpful (0)
+                        </span>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+
+            {/* Right: Write a review card (1 col) */}
+            <div>
+              <div className="bg-white border border-gray-100 p-6 rounded-2xl shadow-xs sticky top-24">
+                <h3 className="font-extrabold text-sm text-gray-900 mb-4 pb-2 border-b border-gray-50">Write a Review</h3>
+                <form onSubmit={handleSubmitReview} className="space-y-4 text-xs">
+                  {/* Rating Selector */}
+                  <div>
+                    <label className="block font-bold text-gray-600 mb-2 uppercase tracking-wider text-[10px]">Select Rating</label>
+                    <div className="flex items-center gap-2">
+                      {[1, 2, 3, 4, 5].map((stars) => (
+                        <button
+                          key={stars}
+                          type="button"
+                          onClick={() => setNewRating(stars)}
+                          className="p-1 hover:scale-115 transition-all cursor-pointer"
+                        >
+                          <Star
+                            className={`w-7 h-7 ${
+                              stars <= newRating
+                                ? 'text-amber-400 fill-amber-400'
+                                : 'text-gray-200 hover:text-amber-200'
+                            }`}
+                          />
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+
+                  {/* Feedback text */}
+                  <div>
+                    <label className="block font-bold text-gray-600 mb-1.5 uppercase tracking-wider text-[10px]">Your Comments *</label>
+                    <textarea
+                      placeholder="Share your experience (food quality, packaging, delivery speed)..."
+                      value={newComment}
+                      onChange={(e) => setNewComment(e.target.value)}
+                      className="w-full bg-gray-50 border border-gray-200 rounded-xl p-3 text-xs focus:outline-none focus:border-[#D70F64] h-24 resize-none text-gray-800 leading-normal"
+                      required
+                    />
+                  </div>
+
+                  <button
+                    type="submit"
+                    disabled={isSubmittingReview}
+                    className="w-full bg-[#D70F64] hover:bg-[#b50b52] text-white font-bold py-3 rounded-xl transition-all shadow-md shadow-[#D70F64]/10 cursor-pointer text-xs flex items-center justify-center gap-1.5 disabled:opacity-50"
+                  >
+                    <Send className="w-3.5 h-3.5" />
+                    {isSubmittingReview ? "Submitting review..." : "Publish Review"}
+                  </button>
+                </form>
+              </div>
+            </div>
           </div>
         </div>
       </div>

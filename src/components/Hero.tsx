@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { Search, MapPin, Compass } from 'lucide-react';
+import LocationInput from './LocationInput';
 
 interface HeroProps {
   onAddressSubmit: (address: string) => void;
@@ -75,13 +76,12 @@ export default function Hero({ onAddressSubmit, currentAddress }: HeroProps) {
           {/* Address search box */}
           <form onSubmit={handleSubmit} className="bg-white p-2.5 rounded-2xl shadow-xl border border-gray-100 flex flex-col sm:flex-row items-stretch gap-2.5 max-w-xl">
             <div className="flex-1 flex items-center gap-2 px-3 border border-gray-100 sm:border-none rounded-xl sm:rounded-none h-12 bg-gray-50 sm:bg-transparent">
-              <MapPin className="w-5 h-5 text-[#D70F64] flex-shrink-0" />
-              <input
-                type="text"
-                placeholder="Enter your street address, city..."
+              <MapPin className="w-5 h-5 text-[#D70F64] flex-shrink-0 animate-pulse" />
+              <LocationInput
                 value={address}
-                onChange={(e) => setAddress(e.target.value)}
-                className="w-full text-sm text-gray-800 placeholder-gray-400 focus:outline-none bg-transparent"
+                onChange={setAddress}
+                placeholder="Enter your street address, city..."
+                className="w-full text-sm text-gray-800 placeholder-gray-400 focus:outline-none bg-transparent border-none py-1.5 focus:ring-0"
               />
               <button
                 type="button"

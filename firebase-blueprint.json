@@ -1,0 +1,93 @@
+{
+  "entities": {
+    "Order": {
+      "title": "Order",
+      "description": "An order placed in the foodpanda clone app",
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "string",
+          "description": "The unique ID of the order"
+        },
+        "userId": {
+          "type": "string",
+          "description": "The unique ID of the user"
+        },
+        "userEmail": {
+          "type": "string",
+          "description": "The email of the user"
+        },
+        "restaurantId": {
+          "type": "string",
+          "description": "The ID of the restaurant"
+        },
+        "restaurantName": {
+          "type": "string",
+          "description": "The name of the restaurant"
+        },
+        "subtotal": {
+          "type": "number",
+          "description": "The order subtotal in PKR"
+        },
+        "deliveryFee": {
+          "type": "number",
+          "description": "The delivery fee"
+        },
+        "discountApplied": {
+          "type": "number",
+          "description": "The voucher discount applied"
+        },
+        "total": {
+          "type": "number",
+          "description": "The net total paid"
+        },
+        "address": {
+          "type": "string",
+          "description": "The delivery address"
+        },
+        "phone": {
+          "type": "string",
+          "description": "The contact phone number"
+        },
+        "paymentMethod": {
+          "type": "string",
+          "description": "The selected payment method"
+        },
+        "paymentStatus": {
+          "type": "string",
+          "description": "The payment status"
+        },
+        "transactionId": {
+          "type": "string",
+          "description": "The transaction ID"
+        },
+        "status": {
+          "type": "string",
+          "description": "The delivery tracking status"
+        },
+        "createdAt": {
+          "type": "string",
+          "description": "ISO timestamp of creation"
+        }
+      },
+      "required": [
+        "id",
+        "userId",
+        "restaurantId",
+        "restaurantName",
+        "subtotal",
+        "total",
+        "address",
+        "phone",
+        "status",
+        "createdAt"
+      ]
+    }
+  },
+  "firestore": {
+    "orders/{orderId}": {
+      "schema": "Order",
+      "description": "Collection of all placed orders"
+    }
+  }
+}

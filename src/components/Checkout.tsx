@@ -5,6 +5,7 @@ import {
   Lock, Calendar, Sparkles, Building2, HelpCircle, Loader2, CheckCircle 
 } from 'lucide-react';
 import { CartItem, Voucher } from '../types';
+import LocationInput from './LocationInput';
 
 interface CheckoutProps {
   cartItems: CartItem[];
@@ -245,11 +246,9 @@ export default function Checkout({
 
               <div className="space-y-1">
                 <label className="block text-xs font-bold text-gray-700 uppercase tracking-wider">Street Address</label>
-                <input
-                  type="text"
-                  required
+                <LocationInput
                   value={address}
-                  onChange={(e) => setAddress(e.target.value)}
+                  onChange={setAddress}
                   placeholder="Enter complete house number, floor, building, street..."
                   className="w-full border border-gray-200 rounded-xl py-3 px-4 text-xs focus:outline-none focus:border-[#D70F64] text-gray-800 bg-gray-50"
                 />

@@ -14,14 +14,37 @@ import Checkout from './components/Checkout';
 import OrderTracking from './components/OrderTracking';
 import AuthModal from './components/AuthModal';
 import Notifications, { NotificationItem } from './components/Notifications';
+import AdminPanel from './components/AdminPanel';
+import OwnerPanel from './components/OwnerPanel';
 
 // Icons
 import { Star, Clock, Bike, Search, MapPin, Grid, Heart, Smile } from 'lucide-react';
 
 export default function App() {
   // Navigation & Screen View
-  const [view, setView] = useState<'home' | 'restaurant-detail' | 'checkout' | 'tracking'>('home');
+  const [view, setView] = useState<'home' | 'restaurant-detail' | 'checkout' | 'tracking' | 'admin-panel' | 'owner-panel'>('home');
+  const [restaurants, setRestaurants] = useState<Restaurant[]>(() => {
+    const saved = localStorage.getItem('fp_custom_restaurants');
+    if (saved) {
+      try {
+        return JSON.parse(saved);
+      } catch (e) {
+        console.error(e);
+      }
+    }
+    return RESTAURANTS;
+  });
   const [selectedRestaurant, setSelectedRestaurant] = useState<Restaurant | null>(null);
+
+  const selectedRestaurantData = useMemo(() => {
+    if (!selectedRestaurant) return null;
+    return restaurants.find(r => r.id === selectedRestaurant.id) || selectedRestaurant;
+  }, [selectedRestaurant, restaurants]);
+
+  const handleUpdateRestaurants = (updatedList: Restaurant[]) => {
+    setRestaurants(updatedList);
+    localStorage.setItem('fp_custom_restaurants', JSON.stringify(updatedList));
+  };
 
   // Authentication State
   const [user, setUser] = useState<any | null>(null);
@@ -195,7 +218,7 @@ export default function App() {
 
   // Filtering Logic
   const filteredRestaurants = useMemo(() => {
-    return RESTAURANTS.filter((res) => {
+    return restaurants.filter((res) => {
       const matchesSearch = 
         res.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
         res.cuisine.toLowerCase().includes(searchQuery.toLowerCase());
@@ -221,6 +244,7 @@ export default function App() {
         searchQuery={searchQuery}
         onSearchChange={setSearchQuery}
         onSelectAddressClick={handleSelectAddressClick}
+        onViewChange={setView}
       />
 
       {/* 2. Page Screens Renderer */}
@@ -326,21 +350,22 @@ export default function App() {
           </div>
         )}
 
-        {view === 'restaurant-detail' && selectedRestaurant && (
+        {view === 'restaurant-detail' && selectedRestaurantData && (
           <RestaurantDetail
-            restaurant={selectedRestaurant}
+            restaurant={selectedRestaurantData}
             cartItems={cart}
             onBack={() => setView('home')}
             onAddToCart={handleAddToCart}
+            user={user}
           />
         )}
 
-        {view === 'checkout' && selectedRestaurant && (
+        {view === 'checkout' && selectedRestaurantData && (
           <Checkout
             cartItems={cart}
-            restaurantName={selectedRestaurant.name}
-            restaurantId={selectedRestaurant.id}
-            deliveryFee={selectedRestaurant.deliveryFee}
+            restaurantName={selectedRestaurantData.name}
+            restaurantId={selectedRestaurantData.id}
+            deliveryFee={selectedRestaurantData.deliveryFee}
             appliedVoucher={appliedVoucher}
             discountAmount={discountAmount}
             userId={user?.uid || "guest"}
@@ -351,19 +376,19 @@ export default function App() {
           />
         )}
 
-        {view === 'tracking' && selectedRestaurant && (
+        {view === 'tracking' && selectedRestaurantData && (
           <OrderTracking
             orderId={lastOrderId}
             transactionId={lastTxnId}
             deliveryAddress={lastAddress}
             deliveryPhone={lastPhone}
             paymentMethod={lastPaymentMethod}
-            restaurantName={selectedRestaurant.name}
+            restaurantName={selectedRestaurantData.name}
             subtotal={cart.reduce((sum, item) => sum + item.foodItem.price * item.quantity, 0)} // fallback for calculation
-            deliveryFee={selectedRestaurant.deliveryFee}
+            deliveryFee={selectedRestaurantData.deliveryFee}
             platformFee={19}
             discountAmount={discountAmount}
-            grandTotal={Math.max(0, cart.reduce((sum, item) => sum + item.foodItem.price * item.quantity, 0) + selectedRestaurant.deliveryFee + 19 - discountAmount)}
+            grandTotal={Math.max(0, cart.reduce((sum, item) => sum + item.foodItem.price * item.quantity, 0) + selectedRestaurantData.deliveryFee + 19 - discountAmount)}
             voucherCode={appliedVoucher?.code}
             onTriggerNotification={handleTriggerNotification}
             onNewOrderClick={() => {
@@ -372,16 +397,33 @@ export default function App() {
             }}
           />
         )}
+
+        {view === 'admin-panel' && (
+          <AdminPanel
+            onBack={() => setView('home')}
+            onTriggerNotification={handleTriggerNotification}
+            restaurants={restaurants}
+          />
+        )}
+
+        {view === 'owner-panel' && (
+          <OwnerPanel
+            onBack={() => setView('home')}
+            onTriggerNotification={handleTriggerNotification}
+            restaurants={restaurants}
+            onUpdateRestaurants={handleUpdateRestaurants}
+          />
+        )}
       </main>
 
       {/* 3. Global CartDrawer */}
-      {selectedRestaurant && (
+      {selectedRestaurantData && (
         <CartDrawer
           isOpen={showCartDrawer}
           onClose={() => setShowCartDrawer(false)}
           cartItems={cart}
-          restaurantName={selectedRestaurant.name}
-          deliveryFee={selectedRestaurant.deliveryFee}
+          restaurantName={selectedRestaurantData.name}
+          deliveryFee={selectedRestaurantData.deliveryFee}
           onUpdateQuantity={handleUpdateCartQuantity}
           onRemoveItem={handleRemoveCartItem}
           onCheckout={handleCheckoutRedirect}
@@ -396,12 +438,18 @@ export default function App() {
           const savedLocalUser = localStorage.getItem('fp_local_user');
           if (savedLocalUser) {
             try {
-              setUser(JSON.parse(savedLocalUser));
+              const parsed = JSON.parse(savedLocalUser);
+              setUser(parsed);
+              if (parsed.uid && String(parsed.uid).startsWith('local-')) {
+                handleTriggerNotification("Authentication Successful! 🔑", "Connected via secure local session fallback (Firebase Auth disabled).", "success");
+              } else {
+                handleTriggerNotification("Authentication Successful! 🔑", "foodpanda: Welcome to your secure account dashboard.", "success");
+              }
             } catch (e) {
               console.error(e);
+              handleTriggerNotification("Authentication Successful! 🔑", "foodpanda: Welcome to your secure account dashboard.", "success");
             }
           }
-          handleTriggerNotification("Authentication Successful! 🔑", "foodpanda: Welcome to your secure account dashboard.", "success");
         }}
       />
 

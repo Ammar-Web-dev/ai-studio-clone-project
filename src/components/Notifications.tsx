@@ -16,12 +16,12 @@ interface NotificationsProps {
 
 export default function Notifications({ notifications, onDismiss }: NotificationsProps) {
   return (
-    <div className="fixed top-4 right-4 z-50 flex flex-col gap-3 w-full max-w-sm pointer-events-none">
+    <div className="fixed bottom-4 right-4 z-50 flex flex-col-reverse gap-3 w-full max-w-sm pointer-events-none">
       <AnimatePresence>
         {notifications.map((notif) => (
           <motion.div
             key={notif.id}
-            initial={{ opacity: 0, y: -20, scale: 0.95 }}
+            initial={{ opacity: 0, y: 20, scale: 0.95 }}
             animate={{ opacity: 1, y: 0, scale: 1 }}
             exit={{ opacity: 0, scale: 0.9, x: 20 }}
             className="pointer-events-auto bg-white rounded-xl shadow-2xl border border-gray-100 overflow-hidden flex flex-col text-sm"

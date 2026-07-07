@@ -12,6 +12,7 @@ interface NavbarProps {
   onSearchChange: (query: string) => void;
   searchQuery: string;
   onSelectAddressClick: () => void;
+  onViewChange: (view: any) => void;
 }
 
 export default function Navbar({
@@ -22,7 +23,8 @@ export default function Navbar({
   deliveryAddress,
   onSearchChange,
   searchQuery,
-  onSelectAddressClick
+  onSelectAddressClick,
+  onViewChange
 }: NavbarProps) {
   
   const handleLogout = async () => {
@@ -95,6 +97,25 @@ export default function Navbar({
           {/* User Profile / Auth */}
           {user ? (
             <div className="flex items-center gap-3">
+              {user.role === 'admin' && (
+                <button
+                  type="button"
+                  onClick={() => onViewChange('admin-panel')}
+                  className="hidden xs:flex items-center gap-1.5 bg-blue-50 hover:bg-blue-100 text-blue-800 border border-blue-200 font-extrabold px-3 py-1.5 rounded-xl text-xs transition-all cursor-pointer"
+                >
+                  <span>👑 Admin Hub</span>
+                </button>
+              )}
+              {user.role === 'owner' && (
+                <button
+                  type="button"
+                  onClick={() => onViewChange('owner-panel')}
+                  className="hidden xs:flex items-center gap-1.5 bg-emerald-50 hover:bg-emerald-100 text-emerald-800 border border-emerald-200 font-extrabold px-3 py-1.5 rounded-xl text-xs transition-all cursor-pointer"
+                >
+                  <span>👨‍🍳 Owner Hub</span>
+                </button>
+              )}
+
               <div className="flex items-center gap-1.5 bg-gray-50 px-3 py-1.5 rounded-full border border-gray-100">
                 <div className="w-6 h-6 bg-[#D70F64]/10 text-[#D70F64] rounded-full flex items-center justify-center font-bold text-xs">
                   {user.displayName ? user.displayName.charAt(0).toUpperCase() : 'U'}
